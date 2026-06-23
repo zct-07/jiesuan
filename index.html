@@ -1,0 +1,505 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>结算表统计分析</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            overflow: hidden;
+        }
+        
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+        
+        .header h1 {
+            font-size: 28px;
+            margin-bottom: 10px;
+        }
+        
+        .header p {
+            opacity: 0.9;
+            font-size: 14px;
+        }
+        
+        .content {
+            padding: 30px;
+        }
+        
+        .upload-section {
+            margin-bottom: 30px;
+        }
+        
+        .upload-label {
+            display: block;
+            font-weight: 600;
+            margin-bottom: 12px;
+            color: #333;
+        }
+        
+        .file-input-wrapper {
+            position: relative;
+            display: inline-block;
+            width: 100%;
+        }
+        
+        .file-input-wrapper input[type="file"] {
+            display: none;
+        }
+        
+        .file-input-button {
+            display: block;
+            width: 100%;
+            padding: 15px;
+            background: #667eea;
+            color: white;
+            border: 2px dashed #667eea;
+            border-radius: 8px;
+            cursor: pointer;
+            text-align: center;
+            font-size: 16px;
+            transition: all 0.3s;
+        }
+        
+        .file-input-button:hover {
+            background: #5568d3;
+            border-color: #5568d3;
+        }
+        
+        .file-input-button.drag-over {
+            background: #764ba2;
+            border-color: #764ba2;
+        }
+        
+        .file-list {
+            margin-top: 15px;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+        
+        .file-item {
+            background: #f0f2f5;
+            padding: 8px 12px;
+            border-radius: 6px;
+            font-size: 14px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .file-item .remove {
+            cursor: pointer;
+            color: #e74c3c;
+            font-weight: bold;
+        }
+        
+        .button-group {
+            display: flex;
+            gap: 10px;
+            margin-top: 20px;
+        }
+        
+        button {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            cursor: pointer;
+            transition: all 0.3s;
+            font-weight: 600;
+        }
+        
+        .btn-primary {
+            background: #667eea;
+            color: white;
+            flex: 1;
+        }
+        
+        .btn-primary:hover:not(:disabled) {
+            background: #5568d3;
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        }
+        
+        .btn-primary:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+        
+        .btn-secondary {
+            background: #95a5a6;
+            color: white;
+        }
+        
+        .btn-secondary:hover {
+            background: #7f8c8d;
+        }
+        
+        .results-section {
+            margin-top: 40px;
+            display: none;
+        }
+        
+        .results-section.show {
+            display: block;
+        }
+        
+        .stats-row {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-bottom: 30px;
+        }
+        
+        .stat-card {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 8px;
+            border-left: 4px solid #667eea;
+        }
+        
+        .stat-label {
+            font-size: 12px;
+            color: #999;
+            text-transform: uppercase;
+            margin-bottom: 8px;
+        }
+        
+        .stat-value {
+            font-size: 24px;
+            font-weight: bold;
+            color: #667eea;
+        }
+        
+        .table-wrapper {
+            overflow-x: auto;
+            margin-top: 20px;
+        }
+        
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 14px;
+        }
+        
+        thead {
+            background: #f0f2f5;
+        }
+        
+        th {
+            padding: 12px;
+            text-align: left;
+            font-weight: 600;
+            color: #333;
+            border-bottom: 2px solid #ddd;
+        }
+        
+        td {
+            padding: 12px;
+            border-bottom: 1px solid #eee;
+        }
+        
+        tr:hover {
+            background: #f9f9f9;
+        }
+        
+        .number {
+            text-align: right;
+            font-family: 'Courier New', monospace;
+        }
+        
+        .total-row {
+            font-weight: bold;
+            background: #fffacd;
+        }
+        
+        .message {
+            padding: 12px;
+            border-radius: 6px;
+            margin-bottom: 20px;
+            display: none;
+        }
+        
+        .message.show {
+            display: block;
+        }
+        
+        .message.error {
+            background: #fee;
+            color: #c33;
+            border-left: 4px solid #c33;
+        }
+        
+        .message.success {
+            background: #efe;
+            color: #3c3;
+            border-left: 4px solid #3c3;
+        }
+        
+        .message.info {
+            background: #eef;
+            color: #33c;
+            border-left: 4px solid #33c;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>📊 结算表统计分析</h1>
+            <p>上传 Excel 结算表文件，自动统计结算金额</p>
+        </div>
+        
+        <div class="content">
+            <div id="message" class="message"></div>
+            
+            <div class="upload-section">
+                <label class="upload-label">选择结算表文件 (支持多个文件)</label>
+                <div class="file-input-wrapper">
+                    <input type="file" id="fileInput" multiple accept=".xlsx,.xls" />
+                    <div class="file-input-button" id="uploadButton">
+                        📁 点击或拖拽 Excel 文件到这里
+                    </div>
+                </div>
+                <div class="file-list" id="fileList"></div>
+            </div>
+            
+            <div class="button-group">
+                <button class="btn-primary" id="analyzeBtn" disabled>分析统计</button>
+                <button class="btn-secondary" id="clearBtn">清空</button>
+                <button class="btn-secondary" id="exportBtn" style="display: none;">📥 导出结果</button>
+            </div>
+            
+            <div class="results-section" id="resultsSection">
+                <div class="stats-row">
+                    <div class="stat-card">
+                        <div class="stat-label">包含文件数</div>
+                        <div class="stat-value" id="fileCount">0</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-label">纳入明细行数</div>
+                        <div class="stat-value" id="detailCount">0</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-label">汇总线路数</div>
+                        <div class="stat-value" id="routeCount">0</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-label">总计金额</div>
+                        <div class="stat-value" id="totalAmount">¥0.00</div>
+                    </div>
+                </div>
+                
+                <div class="table-wrapper">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>结算账户号码</th>
+                                <th class="number">求和项:话费总计</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tableBody">
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const fileInput = document.getElementById('fileInput');
+        const uploadButton = document.getElementById('uploadButton');
+        const fileList = document.getElementById('fileList');
+        const analyzeBtn = document.getElementById('analyzeBtn');
+        const clearBtn = document.getElementById('clearBtn');
+        const exportBtn = document.getElementById('exportBtn');
+        const messageDiv = document.getElementById('message');
+        let selectedFiles = [];
+
+        // 文件上传处理
+        uploadButton.addEventListener('click', () => fileInput.click());
+        
+        uploadButton.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            uploadButton.classList.add('drag-over');
+        });
+        
+        uploadButton.addEventListener('dragleave', () => {
+            uploadButton.classList.remove('drag-over');
+        });
+        
+        uploadButton.addEventListener('drop', (e) => {
+            e.preventDefault();
+            uploadButton.classList.remove('drag-over');
+            handleFiles(e.dataTransfer.files);
+        });
+        
+        fileInput.addEventListener('change', (e) => {
+            handleFiles(e.target.files);
+        });
+
+        function handleFiles(files) {
+            selectedFiles = Array.from(files);
+            updateFileList();
+            analyzeBtn.disabled = selectedFiles.length === 0;
+        }
+
+        function updateFileList() {
+            fileList.innerHTML = selectedFiles.map((file, idx) => `
+                <div class="file-item">
+                    📄 ${file.name}
+                    <span class="remove" onclick="removeFile(${idx})">✕</span>
+                </div>
+            `).join('');
+        }
+
+        function removeFile(idx) {
+            selectedFiles.splice(idx, 1);
+            updateFileList();
+            analyzeBtn.disabled = selectedFiles.length === 0;
+        }
+
+        async function analyzeFiles() {
+            if (selectedFiles.length === 0) return;
+            
+            // 检查 XLSX 库是否加载
+            if (typeof XLSX === 'undefined') {
+                showMessage('✗ 库加载中，请稍候...', 'error');
+                setTimeout(analyzeFiles, 1000);
+                return;
+            }
+            
+            showMessage('正在分析文件...', 'info');
+            analyzeBtn.disabled = true;
+            exportBtn.style.display = 'none';
+
+            try {
+                const summary = {};
+                let totalDetailCount = 0;
+
+                for (const file of selectedFiles) {
+                    const data = await file.arrayBuffer();
+                    const workbook = XLSX.read(data, { cellFormula: false });
+                    const worksheet = workbook.Sheets[workbook.SheetNames[0]];
+                    const rows = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
+
+                    // 解析数据（跳过表头，第3列是账户号，第4列是金额）
+                    for (let i = 1; i < rows.length; i++) {
+                        const row = rows[i];
+                        if (!row || row.length < 4) continue;
+
+                        const route = String(row[2] || '').trim();
+                        if (!route || route === '结算账户号码' || route.endsWith('-呼入结算')) {
+                            continue;
+                        }
+
+                        const amount = parseFloat(String(row[3] || '0').replace(/,/g, '')) || 0;
+                        summary[route] = (summary[route] || 0) + amount;
+                        totalDetailCount++;
+                    }
+                }
+
+                displayResults(summary, totalDetailCount);
+                showMessage(`✓ 成功分析 ${selectedFiles.length} 个文件`, 'success');
+            } catch (error) {
+                showMessage(`✗ 分析失败: ${error.message}`, 'error');
+                console.error(error);
+            } finally {
+                analyzeBtn.disabled = false;
+            }
+        }
+
+        function displayResults(summary, detailCount) {
+            // 排序
+            const sorted = Object.entries(summary).sort((a, b) => a[0].localeCompare(b[0]));
+            const grandTotal = sorted.reduce((sum, [_, amount]) => sum + amount, 0);
+
+            // 更新统计卡
+            document.getElementById('fileCount').textContent = selectedFiles.length;
+            document.getElementById('detailCount').textContent = detailCount.toLocaleString();
+            document.getElementById('routeCount').textContent = sorted.length;
+            document.getElementById('totalAmount').textContent = '¥' + grandTotal.toFixed(3).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+
+            // 填充表格
+            const tbody = document.getElementById('tableBody');
+            tbody.innerHTML = sorted.map(([route, amount]) => `
+                <tr>
+                    <td>${route}</td>
+                    <td class="number">${amount.toFixed(3).replace(/\B(?=(\d{3})+(?!\d))/g, ',')}</td>
+                </tr>
+            `).join('') + `
+                <tr class="total-row">
+                    <td>总计</td>
+                    <td class="number">${grandTotal.toFixed(3).replace(/\B(?=(\d{3})+(?!\d))/g, ',')}</td>
+                </tr>
+            `;
+
+            document.getElementById('resultsSection').classList.add('show');
+            exportBtn.style.display = 'inline-block';
+            window.lastSummary = { sorted, grandTotal, detailCount };
+        }
+
+        function exportResults() {
+            if (!window.lastSummary) return;
+            
+            const { sorted, grandTotal } = window.lastSummary;
+            const wb = XLSX.utils.book_new();
+            const ws_data = [['结算账户号码', '求和项:话费总计']];
+            
+            for (const [route, amount] of sorted) {
+                ws_data.push([route, amount]);
+            }
+            ws_data.push(['总计', grandTotal]);
+            
+            const ws = XLSX.utils.aoa_to_sheet(ws_data);
+            ws['!cols'] = [{ wch: 52 }, { wch: 18 }];
+            
+            XLSX.utils.book_append_sheet(wb, ws, '数据透视汇总');
+            XLSX.writeFile(wb, `结算数据透视汇总_${new Date().toISOString().split('T')[0]}.xlsx`);
+        }
+
+        function clearAll() {
+            selectedFiles = [];
+            fileList.innerHTML = '';
+            document.getElementById('resultsSection').classList.remove('show');
+            exportBtn.style.display = 'none';
+            analyzeBtn.disabled = true;
+            messageDiv.classList.remove('show');
+            fileInput.value = '';
+        }
+
+        function showMessage(text, type) {
+            messageDiv.textContent = text;
+            messageDiv.className = `message ${type} show`;
+        }
+
+        analyzeBtn.addEventListener('click', analyzeFiles);
+        clearBtn.addEventListener('click', clearAll);
+        exportBtn.addEventListener('click', exportResults);
+    </script>
+</body>
+</html>
